@@ -1,39 +1,43 @@
 import requests
-from dataclasses import dataclass
-from typing import Optional
-
-@dataclass
-class Match:
-    match_id: int
-    player_slot: int
-    radiant_win: bool
-    duration: int
-    game_mode: int
-    lobby_type: int
-    start_time: int
-    hero_id: int
-    version: Optional[int] = None
-    kills: int = 0
-    deaths: int = 0
-    assists: int = 0
-    leaver_status: int = 0
-    party_size: Optional[int] = None
-    average_rank: int = 0
-    hero_variant: int = 0
-    item_0: int = 0
-    item_1: int = 0
-    item_2: int = 0
-    item_3: int = 0
-    item_4: int = 0
-    item_5: int = 0
-
+from tqdm import tqdm
+from api_key import api_key
+from classes import PlayerMatch, Hero
 
 base_url = 'https://api.opendota.com/api'
 account_id = 212946967
 
-def getPlayerMatches():
-    url = f'{base_url}/players/{account_id}/matches'
+def getPlayerMatches(limit=None, sort=None):
+    url = f'{base_url}/players/{account_id}/matches?api_key={api_key}&limit={limit}&sort={sort}'
     response = requests.get(url)
-    matches = [Match(**match) for match in response.json()]
-    
+    matches = [PlayerMatch(**match) for match in response.json()]
     return matches
+
+def makeMatchesParsed(matches):
+    for match in tqdm(matches):
+        if match.version == None:
+            url = f'{base_url}/request/{match.match_id}?api_key={api_key}'
+            response = requests.post(url)
+            if response.status_code != 200:
+                raise Exception(f"Something went wrong: {response.status_code} {response.json()}")
+
+def checkParsed(matches):
+    for match in matches:
+        if match.version == None:
+            raise Exception(f"Match version: {match.version}")
+        return "Success!!! Dabl-u"
+
+def getHeroes():
+    url = f'{base_url}/heroes?api_key={api_key}'
+    response = requests.get(url)
+    heroes = [Hero(**hero) for hero in response.json()]
+    return heroes
+
+def getPlayer(match_id):
+    url = f'{base_url}/matches/{match_id}?api_key={api_key}'
+    response = requests.get(url)
+    data = response.json()
+
+    for player in data.get("players", []):
+        if player.get("account_id") == account_id:
+            return player
+    return None 
